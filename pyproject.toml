@@ -10,7 +10,9 @@ fastapi = "^0.75.2"
 uvicorn = {extras = ["standard"], version = "^0.17.6"}
 orjson = "^3.6.8"
 asyncpg = "^0.25.0"
+SQLAlchemy = "^1.4.36"
 sqlmodel = "^0.0.6"
+alembic = "^1.7.7"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

@@ -1,12 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
+from ..core import config, tasks
 from .routes import router as api_router
 
 
 def get_application() -> FastAPI:
-    app = FastAPI(title='jeffastor_tutor', default_response_class=ORJSONResponse)
+    app = FastAPI(
+        title=config.PROJECT_NAME,
+        version=config.VERSION,
+        default_response_class=ORJSONResponse,
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -16,8 +21,12 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.include_router(api_router, prefix='/api')
+    app.add_event_handler("startup", tasks.create_start_app_handler(app))
+    app.add_event_handler("shutdown", tasks.create_stop_app_handler(app))
+
+    app.include_router(api_router, prefix=config.API_PREFIX)
 
     return app
+
 
 app = get_application()
