@@ -1,17 +1,14 @@
-import asyncio
 import logging
 import pathlib
 import sys
 from logging.config import fileConfig
-from typing import cast
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy.future.engine import Engine
+from sqlalchemy.exc import InvalidRequestError
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[3]))
-from app.core.config import DATABASE_URL  # noqa
+from app.db.engine import convert_async_to_sync, engine, get_test_engine, is_test
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -47,10 +44,15 @@ def run_migrations_offline():
     script output.
 
     """
+    if is_test():
+        raise InvalidRequestError(
+            "Running testing migrations offline currently not permitted."
+        )
+
     # url = config.get_main_option("sqlalchemy.url")
     context.configure(
         # url=url,
-        url=DATABASE_URL,
+        url=engine.url.render_as_string(hide_password=False),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -67,30 +69,38 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 
-async def run_migrations_online():
+def run_migrations_online():
     """Run migrations in 'online' mode.
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
 
     """
-    config.set_main_option("sqlalchemy.url", DATABASE_URL)
-    connectable = AsyncEngine(
-        cast(
-            Engine,
-            engine_from_config(
-                config.get_section(config.config_ini_section),
-                prefix="sqlalchemy.",
-                poolclass=pool.NullPool,
-                future=True,
-            ),
-        )
+    test_engine = get_test_engine(engine, is_sync=True)
+    url = test_engine.url
+
+    default_sync_engine = convert_async_to_sync(engine)
+
+    if is_test():
+        from sqlalchemy import text
+
+        with default_sync_engine.connect() as conn:
+            conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+            conn.execute(text(f"drop database if exists {url.database}"))
+            conn.execute(text(f"create database {url.database}"))
+
+    config.set_main_option("sqlalchemy.url", url.render_as_string(hide_password=False))
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+        future=True,
     )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    with connectable.connect() as connection:
+        do_run_migrations(connection)
 
-    await connectable.dispose()
+    connectable.dispose()
 
 
 if context.is_offline_mode():
@@ -98,4 +108,4 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     logger.info("Running migrations online")
-    asyncio.run(run_migrations_online())
+    run_migrations_online()

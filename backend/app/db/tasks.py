@@ -4,18 +4,20 @@ from typing import cast
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 
-from .engine import engine
+from .engine import engine, get_test_engine
 
 logger = logging.getLogger(__name__)
 
 
 async def connect_to_db(app: FastAPI) -> None:
+    _engine = get_test_engine(engine)
+
     try:
-        async with engine.connect():
+        async with _engine.connect():
             logger.info(
-                f"connected db: {engine.url.render_as_string(hide_password=True)}"
+                f"connected db: {_engine.url.render_as_string(hide_password=True)}"
             )
-        app.state._db = engine
+        app.state._db = _engine
     except Exception as e:
         logger.warning("--- DB CONNECTION ERROR ---")
         logger.warning(e)

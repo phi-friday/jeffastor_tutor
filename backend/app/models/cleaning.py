@@ -23,7 +23,7 @@ class cleaning_base(base_model):
 
 class cleaning_create(cleaning_base):
     name: str
-    price: price_decimal_type
+    price: float
 
 
 class cleaning_update(cleaning_base):

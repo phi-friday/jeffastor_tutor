@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException, Path
 from sqlmodel.ext.asyncio.session import AsyncSession
-from starlette.status import HTTP_201_CREATED
+from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND
 
 from ...db.session import get_session
 from ...models.cleaning import cleaning_create, cleaning_public, cleanings
@@ -51,3 +51,17 @@ async def create_new_cleaning(
     await session.refresh(data)
 
     return data
+
+
+@router.get(
+    "/{id}", response_model=cleaning_public, name="cleanings:get-cleaning-by-id"
+)
+async def get_cleaning_by_id(
+    id: int = Path(..., ge=1),
+    session: AsyncSession = Depends(get_session),
+) -> cleanings:
+    if (cleaning := await session.get(cleanings, id)) is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail="No cleaning found with that id."
+        )
+    return cleaning
