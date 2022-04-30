@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.future.engine import Engine
-from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool, QueuePool
+from sqlalchemy.pool import NullPool, QueuePool
 
 from ..core.config import DATABASE_URL
 
@@ -21,19 +21,14 @@ def get_test_url(url: URL) -> URL:
     return url.set(database=f"{url.database}_test")
 
 
-def get_engine_kwargs(
-    is_sync: bool, is_test: bool = False, **kwargs: Any
-) -> dict[str, Any]:
+def get_engine_kwargs(is_test: bool = False, **kwargs: Any) -> dict[str, Any]:
     params: dict[str, Any] = {"pool_pre_ping": True, "future": True}
 
     if is_test:
         params["poolclass"] = NullPool
     else:
         params["pool_size"] = 10
-        if is_sync:
-            params["poolclass"] = QueuePool
-        else:
-            params["poolclass"] = AsyncAdaptedQueuePool
+        params["poolclass"] = QueuePool
 
     return params | kwargs
 
@@ -74,11 +69,11 @@ def convert_async_to_sync(engine: AsyncEngine, **kwargs: Any) -> Engine:
 
 
 def create_sync_engine_from_url(url: str | URL, **kwargs: Any) -> Engine:
-    return create_engine(url, **get_engine_kwargs(is_sync=True, **kwargs))
+    return create_engine(url, **get_engine_kwargs(**kwargs))
 
 
 def create_engine_from_url(url: str | URL, **kwargs: Any) -> AsyncEngine:
-    return create_async_engine(url, **get_engine_kwargs(is_sync=False, **kwargs))
+    return create_async_engine(url, **get_engine_kwargs(**kwargs))
 
 
 engine = create_engine_from_url(DATABASE_URL)
