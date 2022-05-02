@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 import orjson
 import pytest
 from app.models.cleaning import cleaning_create, cleanings
+from app.models.core import datetime_model
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -104,7 +105,9 @@ class TestGetCleaning:
         )
         assert res.status_code == HTTP_200_OK
         cleaning = cleanings.validate(res.json())
-        assert cleaning == test_cleaning
+        assert cleaning.dict(exclude=datetime_model.attrs) == test_cleaning.dict(
+            exclude=datetime_model.attrs
+        )
 
     @pytest.mark.parametrize(
         "id, status_code",
@@ -129,8 +132,10 @@ class TestGetCleaning:
         assert res.status_code == HTTP_200_OK
         assert isinstance((json := res.json()), list)
         assert len(json) > 0
-        all_cleanings = [cleanings.validate(l) for l in json]
-        assert test_cleaning in all_cleanings
+        all_cleanings = [
+            cleanings.validate(l).dict(exclude=datetime_model.attrs) for l in json
+        ]
+        assert test_cleaning.dict(exclude=datetime_model.attrs) in all_cleanings
 
 
 class TestPatchCleaning:
@@ -183,7 +188,7 @@ class TestPatchCleaning:
             assert attr_to_change == value
         # make sure that no other attributes' values have changed
         for attr, value in updated_cleaning.dict().items():
-            if attr not in attrs_to_change:
+            if attr not in attrs_to_change and attr not in datetime_model.attrs:
                 assert getattr(test_cleaning, attr) == value
 
     @pytest.mark.parametrize(
@@ -307,7 +312,7 @@ class TestPutCleaning:
             assert value == getattr(updated_cleaning, attr)
 
         for attr, value in updated_cleaning.dict(exclude={"id"}).items():
-            if attr not in attrs_to_change:
+            if attr not in attrs_to_change and attr not in datetime_model.attrs:
                 assert value == cleanings.__fields__[attr].default
 
     @pytest.mark.parametrize(

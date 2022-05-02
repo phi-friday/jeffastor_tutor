@@ -108,7 +108,7 @@ async def update_cleaning_by_id_as_patch(
     for attr, value in update_dict.items():
         setattr(cleaning, attr, value)
 
-    session.add(cleaning)
+    session.add(cleaning.update())
     await session.flush()
     await session.commit()
     await session.refresh(cleaning)
@@ -116,7 +116,7 @@ async def update_cleaning_by_id_as_patch(
     return cleaning
 
 
-@router.delete("/{id}/", response_model=int, name="cleanings:delete-cleaning-by-id")
+@router.delete("/{id}", response_model=int, name="cleanings:delete-cleaning-by-id")
 async def delete_cleaning_by_id(
     id: int = Path(..., ge=1, title="The ID of the cleaning to delete."),
     session: AsyncSession = Depends(get_session),
@@ -158,7 +158,7 @@ async def update_cleaning_by_id_as_put(
     for attr, value in new_cleaning.dict(exclude={"id"}).items():
         setattr(cleaning, attr, value)
 
-    session.add(cleaning)
+    session.add(cleaning.update())
     await session.flush()
     await session.commit()
     await session.refresh(cleaning)

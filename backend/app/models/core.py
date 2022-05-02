@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Any, TypeVar, cast
 
 from sqlmodel import Field, SQLModel, Table
 
 _T = TypeVar("_T", bound=SQLModel)
+_D = TypeVar("_D", bound="datetime_model")
 
 
 class fix_return_type_model(SQLModel):
@@ -31,3 +33,17 @@ class base_model(fix_return_type_model):
 
 class id_model(fix_return_type_model):
     id: int | None = Field(None, primary_key=True)
+
+
+class datetime_model(fix_return_type_model):
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    def update(self: _D) -> _D:
+        self.updated_at = datetime.now()
+        return self
+
+    @classmethod
+    @property
+    def attrs(cls) -> set[str]:
+        return set(cls.__fields__.keys())
