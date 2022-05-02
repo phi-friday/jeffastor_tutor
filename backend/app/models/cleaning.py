@@ -23,7 +23,7 @@ class cleaning_base(base_model):
 
 class cleaning_create(cleaning_base):
     name: str
-    price: float
+    price: price_decimal_type
 
 
 class cleaning_update(cleaning_base):
@@ -32,7 +32,7 @@ class cleaning_update(cleaning_base):
 
 class cleanings(id_model, cleaning_base, table=True):
     name: str = Field(index=True)
-    cleaning_type: str = Field(
+    cleaning_type: cleaning_type_enum = Field(
         cleaning_type_enum.spot_clean,
         sa_column_kwargs={"server_default": cleaning_type_enum.spot_clean},
     )
