@@ -8,4 +8,4 @@ router = APIRouter()
 
 router.include_router(cleanings_router, prefix="/cleanings", tags=["cleanings"])
 router.include_router(users_router, prefix="/users", tags=["users"])
-router.include_router(token_router, prefix="/auth", tags=["token"])
+router.include_router(token_router, prefix="/token", tags=["token"])

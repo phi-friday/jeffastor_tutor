@@ -7,6 +7,9 @@ config = Config(".env")
 PROJECT_NAME = "jeffastor_tutor"
 VERSION = "1.0.0"
 API_PREFIX = "/api"
+TOKEN_PREFIX = API_PREFIX + "/token"
+
+TESTING = config("TESTING", cast=bool, default=False)
 
 SECRET_KEY = config("SECRET_KEY", cast=Secret, default="CHANGEME")
 

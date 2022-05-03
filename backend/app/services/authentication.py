@@ -12,7 +12,7 @@ from fastapi_users.authentication import (
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ..core.config import SECRET_KEY
+from ..core import config
 from ..db.session import get_session
 from ..models.user import user, user_base, user_create, user_model, user_update
 
@@ -22,12 +22,12 @@ async def get_user_db(session: AsyncSession = Depends(get_session)):
 
 
 def create_transport() -> Transport:
-    return BearerTransport(tokenUrl="api/auth/token")
+    return BearerTransport(tokenUrl=config.TOKEN_PREFIX)
 
 
 def create_strategy() -> Strategy:
     return JWTStrategy(
-        secret=str(SECRET_KEY),
+        secret=str(config.SECRET_KEY),
         lifetime_seconds=3600,
     )
 
@@ -43,8 +43,8 @@ def create_backend() -> list[AuthenticationBackend]:
 
 class UserManager(BaseUserManager[user_create, user]):
     user_db_model = user
-    reset_password_token_secret = str(SECRET_KEY)
-    verification_token_secret = str(SECRET_KEY)
+    reset_password_token_secret = str(config.SECRET_KEY)
+    verification_token_secret = str(config.SECRET_KEY)
 
     async def on_after_register(self, user: user, request: Request | None = None):
         print(f"User {user.id} has registered.")

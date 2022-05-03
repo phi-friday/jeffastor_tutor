@@ -5,16 +5,10 @@ import orjson
 import pytest
 from app.models.cleaning import cleaning_create, cleanings
 from app.models.core import datetime_model
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel.ext.asyncio.session import AsyncSession
-from starlette.status import (
-    HTTP_200_OK,
-    HTTP_201_CREATED,
-    HTTP_404_NOT_FOUND,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-)
 
 # decorate all tests with @pytest.mark.asyncio
 pytestmark = pytest.mark.asyncio
@@ -35,13 +29,13 @@ def new_cleaning():
 class TestCleaningsRoutes:
     async def test_routes_exist(self, app: FastAPI, client: AsyncClient) -> None:
         res = await client.post(app.url_path_for("cleanings:create-cleaning"), json={})
-        assert res.status_code != HTTP_404_NOT_FOUND
+        assert res.status_code != status.HTTP_404_NOT_FOUND
 
     async def test_invalid_input_raises_error(
         self, app: FastAPI, client: AsyncClient
     ) -> None:
         res = await client.post(app.url_path_for("cleanings:create-cleaning"), json={})
-        assert res.status_code == HTTP_422_UNPROCESSABLE_ENTITY
+        assert res.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class TestCreateCleaning:
@@ -52,7 +46,7 @@ class TestCreateCleaning:
             app.url_path_for("cleanings:create-cleaning"),
             json={"new_cleaning": orjson.loads(new_cleaning.json())},
         )
-        assert res.status_code == HTTP_201_CREATED
+        assert res.status_code == status.HTTP_201_CREATED
 
         created_cleaning = cleaning_create(**res.json())
         assert created_cleaning == new_cleaning
@@ -103,7 +97,7 @@ class TestGetCleaning:
         res = await client.get(
             app.url_path_for("cleanings:get-cleaning-by-id", id=str(test_cleaning.id))
         )
-        assert res.status_code == HTTP_200_OK
+        assert res.status_code == status.HTTP_200_OK
         cleaning = cleanings.validate(res.json())
         assert cleaning.dict(exclude=datetime_model.attrs) == test_cleaning.dict(
             exclude=datetime_model.attrs
@@ -129,7 +123,7 @@ class TestGetCleaning:
         self, app: FastAPI, client: AsyncClient, test_cleaning: cleanings
     ) -> None:
         res = await client.get(app.url_path_for("cleanings:get-all-cleanings"))
-        assert res.status_code == HTTP_200_OK
+        assert res.status_code == status.HTTP_200_OK
         assert isinstance((json := res.json()), list)
         assert len(json) > 0
         all_cleanings = [
@@ -173,7 +167,7 @@ class TestPatchCleaning:
             ),
             json=update_cleaning,
         )
-        assert res.status_code == HTTP_200_OK
+        assert res.status_code == status.HTTP_200_OK
         updated_cleaning = cleanings.validate(res.json())
         assert (
             updated_cleaning.id == test_cleaning.id
@@ -231,12 +225,12 @@ class TestDeleteCleaning:
                 "cleanings:delete-cleaning-by-id", id=str(test_cleaning.id)
             ),
         )
-        assert res.status_code == HTTP_200_OK
+        assert res.status_code == status.HTTP_200_OK
         # ensure that the cleaning no longer exists
         res = await client.get(
             app.url_path_for("cleanings:get-cleaning-by-id", id=str(test_cleaning.id)),
         )
-        assert res.status_code == HTTP_404_NOT_FOUND
+        assert res.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize(
         "id, status_code",
@@ -301,7 +295,7 @@ class TestPutCleaning:
             ),
             json=orjson.loads(orjson.dumps(update_cleaning, default=str)),
         )
-        assert res.status_code == HTTP_200_OK
+        assert res.status_code == status.HTTP_200_OK
         updated_cleaning = cleanings.validate(res.json())
         assert updated_cleaning.id == test_cleaning.id
 
