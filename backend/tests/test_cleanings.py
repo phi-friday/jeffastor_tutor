@@ -10,8 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-# decorate all tests with @pytest.mark.asyncio
-pytestmark = pytest.mark.asyncio
+pytestmark = pytest.mark.anyio
 
 
 @pytest.fixture

@@ -11,6 +11,13 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 
 
+@pytest.fixture(
+    params=[pytest.param(("asyncio", {"use_uvloop": True}), id="asyncio+uvloop")]
+)
+def anyio_backend(request):
+    return request.param
+
+
 # Apply migrations at beginning and end of testing session
 @pytest.fixture(scope="session")
 def apply_migrations():
