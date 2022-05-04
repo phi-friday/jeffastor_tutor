@@ -81,13 +81,13 @@ class UserManager(BaseUserManager[user.user_create, user.user]):
             )
 
         for pattern in self.re_password_deny_list:
-            if pattern.match(password):
+            if pattern.search(password):
                 raise InvalidPasswordException(
                     reason=f"Password should not include {pattern.pattern}"
                 )
 
         for pattern in self.re_password_need_list:
-            if not pattern.match(password):
+            if not pattern.search(password):
                 raise InvalidPasswordException(
                     reason=f"Password must include {pattern.pattern}"
                 )
