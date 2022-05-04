@@ -28,7 +28,7 @@ users_table = user_model.get_table()
 
 def create_cleanings_table() -> None:
     col_names = {"id", "name", "description", "cleaning_type", "price"}.union(
-        datetime_model.attrs
+        datetime_model.datetime_attrs
     )
 
     op.create_table(
@@ -46,7 +46,7 @@ def create_user_table() -> None:
         "is_active",
         "is_superuser",
         "is_verified",
-    }.union(datetime_model.attrs)
+    }.union(datetime_model.datetime_attrs)
 
     op.create_table(
         users_table.name, *[col for col in users_table.columns if col.name in col_names]

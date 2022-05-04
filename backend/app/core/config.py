@@ -11,7 +11,13 @@ TOKEN_PREFIX = API_PREFIX + "/token"
 
 TESTING = config("TESTING", cast=bool, default=False)
 
-SECRET_KEY = config("SECRET_KEY", cast=Secret, default="CHANGEME")
+SECRET_KEY = config("SECRET_KEY", cast=Secret)
+ACCESS_TOKEN_EXPIRE_SECONDS = config(
+    "ACCESS_TOKEN_EXPIRE_SECONDS", cast=int, default=60 * 60
+)
+JWT_ALGORITHM = config("JWT_ALGORITHM", cast=str, default="HS256")
+JWT_AUDIENCE = config("JWT_AUDIENCE", cast=str, default="phresh:auth")
+JWT_TOKEN_PREFIX = config("JWT_TOKEN_PREFIX", cast=str, default="Bearer")
 
 POSTGRES_USER = config("POSTGRES_USER", cast=str)
 POSTGRES_PASSWORD = config("POSTGRES_PASSWORD", cast=Secret)

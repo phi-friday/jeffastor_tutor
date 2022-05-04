@@ -13,7 +13,7 @@ fastapi_user = fastapi_user_class.init()
 router = APIRouter()
 
 
-@router.post("")
+@router.post("", name="users:create-token")
 async def create_token(
     credentials: OAuth2PasswordRequestForm = Depends(),
     user_manager: user_manager_type = fastapi_user.user_manager_depends,

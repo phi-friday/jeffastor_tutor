@@ -26,7 +26,7 @@ strategy_type = Strategy[user.user_create, user.user]
 
 class token_model(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = config.JWT_TOKEN_PREFIX
 
     @classmethod
     def from_token(cls, token: str) -> "token_model":
@@ -42,7 +42,12 @@ def create_transport() -> Transport:
 
 
 def create_strategy() -> Strategy[user.user_create, user.user]:
-    return JWTStrategy(secret=str(config.SECRET_KEY), lifetime_seconds=3600)
+    return JWTStrategy(
+        secret=str(config.SECRET_KEY),
+        lifetime_seconds=config.ACCESS_TOKEN_EXPIRE_SECONDS,
+        token_audience=[config.JWT_AUDIENCE],
+        algorithm=config.JWT_ALGORITHM,
+    )
 
 
 def create_backend() -> list[AuthenticationBackend[user.user_create, user.user]]:
@@ -75,7 +80,7 @@ class UserManager(BaseUserManager[user.user_create, user.user]):
             raise InvalidPasswordException(
                 reason=f"Password should be at least {self.min_password_length} characters"
             )
-        elif len(password) > self.min_password_length:
+        elif len(password) > self.max_password_length:
             raise InvalidPasswordException(
                 reason=f"Password should be at most {self.max_password_length} characters"
             )

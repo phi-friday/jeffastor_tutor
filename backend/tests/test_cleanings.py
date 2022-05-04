@@ -98,9 +98,9 @@ class TestGetCleaning:
         )
         assert res.status_code == status.HTTP_200_OK
         valid_cleaning = cleaning.cleanings.validate(res.json())
-        assert valid_cleaning.dict(exclude=datetime_model.attrs) == test_cleaning.dict(
-            exclude=datetime_model.attrs
-        )
+        assert valid_cleaning.dict(
+            exclude=datetime_model.datetime_attrs
+        ) == test_cleaning.dict(exclude=datetime_model.datetime_attrs)
 
     @pytest.mark.parametrize(
         "id, status_code",
@@ -126,10 +126,12 @@ class TestGetCleaning:
         assert isinstance((json := res.json()), list)
         assert len(json) > 0
         all_cleanings = [
-            cleaning.cleanings.validate(l).dict(exclude=datetime_model.attrs)
+            cleaning.cleanings.validate(l).dict(exclude=datetime_model.datetime_attrs)
             for l in json
         ]
-        assert test_cleaning.dict(exclude=datetime_model.attrs) in all_cleanings
+        assert (
+            test_cleaning.dict(exclude=datetime_model.datetime_attrs) in all_cleanings
+        )
 
 
 class TestPatchCleaning:
@@ -182,7 +184,10 @@ class TestPatchCleaning:
             assert attr_to_change == value
         # make sure that no other attributes' values have changed
         for attr, value in updated_cleaning.dict().items():
-            if attr not in attrs_to_change and attr not in datetime_model.attrs:
+            if (
+                attr not in attrs_to_change
+                and attr not in datetime_model.datetime_attrs
+            ):
                 assert getattr(test_cleaning, attr) == value
 
     @pytest.mark.parametrize(
@@ -305,7 +310,10 @@ class TestPutCleaning:
             assert value == getattr(updated_cleaning, attr)
 
         for attr, value in updated_cleaning.dict(exclude={"id"}).items():
-            if attr not in attrs_to_change and attr not in datetime_model.attrs:
+            if (
+                attr not in attrs_to_change
+                and attr not in datetime_model.datetime_attrs
+            ):
                 assert value == cleaning.cleanings.__fields__[attr].default
 
     @pytest.mark.parametrize(

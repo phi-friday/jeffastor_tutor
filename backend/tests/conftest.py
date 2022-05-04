@@ -5,10 +5,15 @@ from typing import AsyncIterator
 import alembic
 import pytest
 from alembic.config import Config
+from app.models import user
+from app.services.authentication import UserManager
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
+from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users.manager import UserNotExists
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.fixture(
@@ -42,6 +47,28 @@ def app(apply_migrations: None) -> FastAPI:
 @pytest.fixture
 def engine(app: FastAPI) -> AsyncEngine:
     return app.state._db
+
+
+@pytest.fixture
+async def test_user(engine: AsyncEngine) -> user.user_model:
+    new_user = user.user_create.parse_obj(
+        dict(
+            email="lebron@james.io",
+            name="lebronjames",
+            password="heatcavslakers@1",
+        )
+    )
+
+    async with AsyncSession(engine, autocommit=False) as session:
+        db = SQLAlchemyUserDatabase(user.user, session, user.user_model)  # type: ignore
+        manager = UserManager(db)
+
+        try:
+            new_user_db = await manager.get_by_email(new_user.email)
+        except UserNotExists:
+            new_user_db = await manager.create(new_user, safe=True)
+
+    return new_user_db.to_model()
 
 
 # Make requests in our tests
