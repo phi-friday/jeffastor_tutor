@@ -1,8 +1,10 @@
+import re
 from dataclasses import dataclass
+from re import Pattern
 from typing import AsyncGenerator, Sequence
 
 from fastapi import Depends, Request
-from fastapi_users import BaseUserManager, FastAPIUsers
+from fastapi_users import BaseUserManager, FastAPIUsers, InvalidPasswordException
 from fastapi_users.authentication import (
     AuthenticationBackend,
     BearerTransport,
@@ -56,6 +58,39 @@ class UserManager(BaseUserManager[user.user_create, user.user]):
     user_db_model = user.user
     reset_password_token_secret = str(config.SECRET_KEY)
     verification_token_secret = str(config.SECRET_KEY)
+
+    min_password_length: int = 10
+    max_password_length: int = 30
+    re_password_need_list: list[Pattern] = [
+        re.compile(r"[a-zA-Z]"),
+        re.compile(r"[0-9]"),
+        re.compile(r"[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\=\(\'\"]"),
+    ]
+    re_password_deny_list: list[Pattern] = []
+
+    async def validate_password(
+        self, password: str, user: user.user_create | user.user
+    ) -> None:
+        if len(password) < self.min_password_length:
+            raise InvalidPasswordException(
+                reason=f"Password should be at least {self.min_password_length} characters"
+            )
+        elif len(password) > self.min_password_length:
+            raise InvalidPasswordException(
+                reason=f"Password should be at most {self.max_password_length} characters"
+            )
+
+        for pattern in self.re_password_deny_list:
+            if pattern.match(password):
+                raise InvalidPasswordException(
+                    reason=f"Password should not include {pattern.pattern}"
+                )
+
+        for pattern in self.re_password_need_list:
+            if not pattern.match(password):
+                raise InvalidPasswordException(
+                    reason=f"Password must include {pattern.pattern}"
+                )
 
     async def on_after_register(self, user: user.user, request: Request | None = None):
         print(f"User {user.id} has registered.")
