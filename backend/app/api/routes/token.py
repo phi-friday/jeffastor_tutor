@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_users.authentication import Strategy
-from fastapi_users.manager import BaseUserManager
 from fastapi_users.router import ErrorCode
 
-from ...models import user
 from ...services.authentication import fastapi_user as fastapi_user_class
-from ...services.authentication import get_user_manager
+from ...services.authentication import strategy_type, token_model, user_manager_type
 
 fastapi_user = fastapi_user_class.init()
 router = APIRouter()
@@ -15,13 +12,9 @@ router = APIRouter()
 @router.post("")
 async def create_token(
     credentials: OAuth2PasswordRequestForm = Depends(),
-    user_manager: BaseUserManager[user.user_create, user.user] = Depends(
-        get_user_manager
-    ),
-    strategy: Strategy[user.user_create, user.user] = Depends(
-        fastapi_user.backends[0].get_strategy
-    ),
-) -> dict[str, str]:
+    user_manager: user_manager_type = fastapi_user.user_manager_depends,
+    strategy: strategy_type = fastapi_user.strategy_depends(),
+) -> token_model:
     get_user = await user_manager.authenticate(credentials)
     if get_user is None or not get_user.is_active:
         raise HTTPException(
@@ -35,4 +28,4 @@ async def create_token(
         )
 
     token = await strategy.write_token(get_user)
-    return {"access_token": token, "token_type": "bearer"}
+    return token_model.from_token(token)

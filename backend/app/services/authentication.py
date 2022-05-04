@@ -10,15 +10,28 @@ from fastapi_users.authentication import (
     Transport,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
+from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..core import config
 from ..db.session import get_session
-from ..models.user import user, user_base, user_create, user_model, user_update
+from ..models import user
+
+user_manager_type = BaseUserManager[user.user_create, user.user]
+strategy_type = Strategy[user.user_create, user.user]
+
+
+class token_model(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+    @classmethod
+    def from_token(cls, token: str) -> "token_model":
+        return cls(access_token=token)
 
 
 async def get_user_db(session: AsyncSession = Depends(get_session)):
-    yield SQLAlchemyUserDatabase(user, session, user_model)  # type: ignore
+    yield SQLAlchemyUserDatabase(user.user, session, user.user_model)  # type: ignore
 
 
 def create_transport() -> Transport:
@@ -26,10 +39,7 @@ def create_transport() -> Transport:
 
 
 def create_strategy() -> Strategy:
-    return JWTStrategy(
-        secret=str(config.SECRET_KEY),
-        lifetime_seconds=3600,
-    )
+    return JWTStrategy(secret=str(config.SECRET_KEY), lifetime_seconds=3600)
 
 
 def create_backend() -> list[AuthenticationBackend]:
@@ -41,21 +51,21 @@ def create_backend() -> list[AuthenticationBackend]:
     ]
 
 
-class UserManager(BaseUserManager[user_create, user]):
-    user_db_model = user
+class UserManager(BaseUserManager[user.user_create, user.user]):
+    user_db_model = user.user
     reset_password_token_secret = str(config.SECRET_KEY)
     verification_token_secret = str(config.SECRET_KEY)
 
-    async def on_after_register(self, user: user, request: Request | None = None):
+    async def on_after_register(self, user: user.user, request: Request | None = None):
         print(f"User {user.id} has registered.")
 
     async def on_after_forgot_password(
-        self, user: user, token: str, request: Request | None = None
+        self, user: user.user, token: str, request: Request | None = None
     ):
         print(f"User {user.id} has forgot their password. Reset token: {token}")
 
     async def on_after_request_verify(
-        self, user: user, token: str, request: Request | None = None
+        self, user: user.user, token: str, request: Request | None = None
     ):
         print(f"Verification requested for user {user.id}. Verification token: {token}")
 
@@ -68,20 +78,30 @@ def create_fastapi_users(*backends: AuthenticationBackend) -> FastAPIUsers:
     return FastAPIUsers(
         get_user_manager=get_user_manager,
         auth_backends=backends,
-        user_model=user_base,
-        user_create_model=user_create,
-        user_update_model=user_update,
-        user_db_model=user,
+        user_model=user.user_base,
+        user_create_model=user.user_create,
+        user_update_model=user.user_update,
+        user_db_model=user.user,
     )
 
 
 @dataclass(frozen=True)
 class fastapi_user:
     users: FastAPIUsers
-    backends: list[AuthenticationBackend]
 
     @classmethod
     def init(cls) -> "fastapi_user":
-        backends = create_backend()
-        users = create_fastapi_users(*backends)
-        return cls(users=users, backends=backends)
+        users = create_fastapi_users(*create_backend())
+        return cls(users=users)
+
+    @property
+    def backends(self):
+        return self.users.authenticator.backends
+
+    @property
+    def user_manager_depends(self) -> user_manager_type:
+        return Depends(self.users.get_user_manager)
+
+    def strategy_depends(self, num: int = 0, /) -> strategy_type:
+        backend = self.backends[num]
+        return Depends(backend.get_strategy)
