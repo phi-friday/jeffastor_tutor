@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Sequence
 
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers
@@ -42,7 +43,7 @@ def create_strategy() -> Strategy:
     return JWTStrategy(secret=str(config.SECRET_KEY), lifetime_seconds=3600)
 
 
-def create_backend() -> list[AuthenticationBackend]:
+def create_backend() -> list[AuthenticationBackend[user.user_create, user.user]]:
     transport = create_transport()
     return [
         AuthenticationBackend(
@@ -74,7 +75,9 @@ async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
 
 
-def create_fastapi_users(*backends: AuthenticationBackend) -> FastAPIUsers:
+def create_fastapi_users(
+    *backends: AuthenticationBackend[user.user_create, user.user],
+) -> FastAPIUsers[user.user_base, user.user_create, user.user_update, user.user]:
     return FastAPIUsers(
         get_user_manager=get_user_manager,
         auth_backends=backends,
@@ -86,16 +89,16 @@ def create_fastapi_users(*backends: AuthenticationBackend) -> FastAPIUsers:
 
 
 @dataclass(frozen=True)
-class fastapi_user:
-    users: FastAPIUsers
+class fastapi_user_class:
+    users: FastAPIUsers[user.user_base, user.user_create, user.user_update, user.user]
 
     @classmethod
-    def init(cls) -> "fastapi_user":
+    def init(cls) -> "fastapi_user_class":
         users = create_fastapi_users(*create_backend())
         return cls(users=users)
 
     @property
-    def backends(self):
+    def backends(self) -> Sequence[AuthenticationBackend[user.user_create, user.user]]:
         return self.users.authenticator.backends
 
     @property

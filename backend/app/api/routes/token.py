@@ -2,8 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users.router import ErrorCode
 
-from ...services.authentication import fastapi_user as fastapi_user_class
-from ...services.authentication import strategy_type, token_model, user_manager_type
+from ...services.authentication import (
+    fastapi_user_class,
+    strategy_type,
+    token_model,
+    user_manager_type,
+)
 
 fastapi_user = fastapi_user_class.init()
 router = APIRouter()
