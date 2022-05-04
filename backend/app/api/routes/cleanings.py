@@ -25,9 +25,9 @@ async def get_all_cleanings(
     # session.sync_session에서 type hint 관련해서만 확인해보면 됩니다.
     #
     # sync_session = session.sync_session
-    # table = sync_session.exec(select(cleanings))
+    # table = sync_session.exec(select(cleaning.cleanings))
     # rows = table.all()
-    table = await session.exec(select(cleanings))  # type: ignore
+    table = await session.exec(select(cleaning.cleanings))  # type: ignore
     rows = cast(list[cleaning.cleanings], table.all())
     return rows
 
@@ -108,7 +108,7 @@ async def update_cleaning_by_id_as_patch(
     session.add(get_cleaning.update())
     await session.flush()
     await session.commit()
-    await session.refresh(cleaning)
+    await session.refresh(get_cleaning)
 
     return get_cleaning
 
@@ -163,6 +163,6 @@ async def update_cleaning_by_id_as_put(
     session.add(get_cleaning.update())
     await session.flush()
     await session.commit()
-    await session.refresh(cleaning)
+    await session.refresh(get_cleaning)
 
     return get_cleaning

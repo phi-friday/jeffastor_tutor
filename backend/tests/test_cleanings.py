@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 import orjson
 import pytest
-from app.models.cleaning import cleaning_create, cleanings
+from app.models import cleaning
 from app.models.core import datetime_model
 from fastapi import FastAPI, status
 from httpx import AsyncClient
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture
 def new_cleaning():
-    return cleaning_create.parse_obj(
+    return cleaning.cleaning_create.parse_obj(
         dict(
             name="test cleaning",
             description="test description",
@@ -40,7 +40,7 @@ class TestCleaningsRoutes:
 
 class TestCreateCleaning:
     async def test_valid_input_creates_cleaning(
-        self, app: FastAPI, client: AsyncClient, new_cleaning: cleaning_create
+        self, app: FastAPI, client: AsyncClient, new_cleaning: cleaning.cleaning_create
     ) -> None:
         res = await client.post(
             app.url_path_for("cleanings:create-cleaning"),
@@ -48,7 +48,7 @@ class TestCreateCleaning:
         )
         assert res.status_code == status.HTTP_201_CREATED
 
-        created_cleaning = cleaning_create(**res.json())
+        created_cleaning = cleaning.cleaning_create(**res.json())
         assert created_cleaning == new_cleaning
 
     @pytest.mark.parametrize(
@@ -72,8 +72,8 @@ class TestCreateCleaning:
 
 
 @pytest.fixture
-async def test_cleaning(engine: AsyncEngine) -> cleanings:
-    new_cleaning_create = cleaning_create.parse_obj(
+async def test_cleaning(engine: AsyncEngine) -> cleaning.cleanings:
+    new_cleaning_create = cleaning.cleaning_create.parse_obj(
         dict(
             name="fake cleaning name",
             description="fake cleaning description",
@@ -81,7 +81,7 @@ async def test_cleaning(engine: AsyncEngine) -> cleanings:
             cleaning_type="spot_clean",
         )
     )
-    new_cleaning = cleanings.validate(new_cleaning_create)
+    new_cleaning = cleaning.cleanings.validate(new_cleaning_create)
     async with AsyncSession(engine, autocommit=False) as session:
         session.add(new_cleaning)
         await session.commit()
@@ -92,14 +92,14 @@ async def test_cleaning(engine: AsyncEngine) -> cleanings:
 
 class TestGetCleaning:
     async def test_get_cleaning_by_id(
-        self, app: FastAPI, client: AsyncClient, test_cleaning: cleanings
+        self, app: FastAPI, client: AsyncClient, test_cleaning: cleaning.cleanings
     ) -> None:
         res = await client.get(
             app.url_path_for("cleanings:get-cleaning-by-id", id=str(test_cleaning.id))
         )
         assert res.status_code == status.HTTP_200_OK
-        cleaning = cleanings.validate(res.json())
-        assert cleaning.dict(exclude=datetime_model.attrs) == test_cleaning.dict(
+        valid_cleaning = cleaning.cleanings.validate(res.json())
+        assert valid_cleaning.dict(exclude=datetime_model.attrs) == test_cleaning.dict(
             exclude=datetime_model.attrs
         )
 
@@ -120,14 +120,15 @@ class TestGetCleaning:
         assert res.status_code == status_code
 
     async def test_get_all_cleanings_returns_valid_response(
-        self, app: FastAPI, client: AsyncClient, test_cleaning: cleanings
+        self, app: FastAPI, client: AsyncClient, test_cleaning: cleaning.cleanings
     ) -> None:
         res = await client.get(app.url_path_for("cleanings:get-all-cleanings"))
         assert res.status_code == status.HTTP_200_OK
         assert isinstance((json := res.json()), list)
         assert len(json) > 0
         all_cleanings = [
-            cleanings.validate(l).dict(exclude=datetime_model.attrs) for l in json
+            cleaning.cleanings.validate(l).dict(exclude=datetime_model.attrs)
+            for l in json
         ]
         assert test_cleaning.dict(exclude=datetime_model.attrs) in all_cleanings
 
@@ -154,7 +155,7 @@ class TestPatchCleaning:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_cleaning: cleanings,
+        test_cleaning: cleaning.cleanings,
         attrs_to_change: list[str],
         values: list[str | int | float],
     ) -> None:
@@ -168,7 +169,7 @@ class TestPatchCleaning:
             json=update_cleaning,
         )
         assert res.status_code == status.HTTP_200_OK
-        updated_cleaning = cleanings.validate(res.json())
+        updated_cleaning = cleaning.cleanings.validate(res.json())
         assert (
             updated_cleaning.id == test_cleaning.id
         )  # make sure it's the same cleaning
@@ -217,7 +218,7 @@ class TestDeleteCleaning:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_cleaning: cleanings,
+        test_cleaning: cleaning.cleanings,
     ) -> None:
         # delete the cleaning
         res = await client.delete(
@@ -245,7 +246,7 @@ class TestDeleteCleaning:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_cleaning: cleanings,
+        test_cleaning: cleaning.cleanings,
         id: int,
         status_code: int,
     ) -> None:
@@ -281,13 +282,12 @@ class TestPutCleaning:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_cleaning: cleanings,
+        test_cleaning: cleaning.cleanings,
         attrs_to_change: list[str],
         values: list[str | int | float],
     ) -> None:
         update_cleaning = {"update_cleaning": dict(zip(attrs_to_change, values))}
 
-        print(orjson.loads(orjson.dumps(update_cleaning, default=str)))
         res = await client.put(
             app.url_path_for(
                 "cleanings:update-cleaning-by-id-as-put",
@@ -296,7 +296,7 @@ class TestPutCleaning:
             json=orjson.loads(orjson.dumps(update_cleaning, default=str)),
         )
         assert res.status_code == status.HTTP_200_OK
-        updated_cleaning = cleanings.validate(res.json())
+        updated_cleaning = cleaning.cleanings.validate(res.json())
         assert updated_cleaning.id == test_cleaning.id
 
         for attr, value in update_cleaning["update_cleaning"].items():
@@ -307,7 +307,7 @@ class TestPutCleaning:
 
         for attr, value in updated_cleaning.dict(exclude={"id"}).items():
             if attr not in attrs_to_change and attr not in datetime_model.attrs:
-                assert value == cleanings.__fields__[attr].default
+                assert value == cleaning.cleanings.__fields__[attr].default
 
     @pytest.mark.parametrize(
         "id, payload, status_code",

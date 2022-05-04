@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence
+from typing import AsyncGenerator, Sequence
 
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers
@@ -39,7 +39,7 @@ def create_transport() -> Transport:
     return BearerTransport(tokenUrl=config.TOKEN_PREFIX)
 
 
-def create_strategy() -> Strategy:
+def create_strategy() -> Strategy[user.user_create, user.user]:
     return JWTStrategy(secret=str(config.SECRET_KEY), lifetime_seconds=3600)
 
 
@@ -71,7 +71,9 @@ class UserManager(BaseUserManager[user.user_create, user.user]):
         print(f"Verification requested for user {user.id}. Verification token: {token}")
 
 
-async def get_user_manager(user_db=Depends(get_user_db)):
+async def get_user_manager(
+    user_db=Depends(get_user_db),
+) -> AsyncGenerator[UserManager, None]:
     yield UserManager(user_db)
 
 
