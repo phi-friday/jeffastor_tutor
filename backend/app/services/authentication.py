@@ -13,7 +13,6 @@ from fastapi_users.authentication import (
     Transport,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
-from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..core import config
@@ -22,15 +21,6 @@ from ..models import user
 
 user_manager_type = BaseUserManager[user.user_create, user.user]
 strategy_type = Strategy[user.user_create, user.user]
-
-
-class token_model(BaseModel):
-    access_token: str
-    token_type: str = config.JWT_TOKEN_PREFIX
-
-    @classmethod
-    def from_token(cls, token: str) -> "token_model":
-        return cls(access_token=token)
 
 
 async def get_user_db(session: AsyncSession = Depends(get_session)):
@@ -54,7 +44,9 @@ def create_backend() -> list[AuthenticationBackend[user.user_create, user.user]]
     transport = create_transport()
     return [
         AuthenticationBackend(
-            name="bearer_jwt", transport=transport, get_strategy=create_strategy
+            name=config.AUTH_BACKEND_NAME,
+            transport=transport,
+            get_strategy=create_strategy,
         )
     ]
 

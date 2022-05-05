@@ -6,13 +6,14 @@ import alembic
 import pytest
 from alembic.config import Config
 from app.models import user
-from app.services.authentication import UserManager
+from app.services.authentication import UserManager, create_strategy
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.manager import UserNotExists
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 
@@ -81,3 +82,16 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
             headers={"Content-Type": "application/json"},
         ) as client:
             yield client
+
+
+@pytest.fixture
+async def authorized_client(
+    client: AsyncClient, test_user: user.user_model
+) -> AsyncClient:
+    from app.core import config
+
+    strategy = create_strategy()
+    access_token = await strategy.write_token(user=test_user)  # type: ignore
+
+    client.headers["Authorization"] = f"{config.JWT_TOKEN_PREFIX} {access_token}"
+    return client

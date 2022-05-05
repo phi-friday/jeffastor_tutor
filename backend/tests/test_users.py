@@ -1,9 +1,10 @@
 import pytest
 from app.core import config
 from app.models import user
-from app.services.authentication import create_strategy
+from app.services.authentication import UserManager, create_strategy
 from fastapi import FastAPI, status
 from fastapi_users.authentication import JWTStrategy
+from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.jwt import decode_jwt
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -117,7 +118,7 @@ def strategy() -> JWTStrategy:
 
 
 class TestAuthTokens:
-    api_name = "users:create-token"
+    api_name = f"auth:{config.AUTH_BACKEND_NAME}.login"
 
     async def test_can_create_access_token_successfully(
         self,
@@ -153,3 +154,120 @@ class TestAuthTokens:
             data={"username": "unknown", "password": "testpassword@1"},
         )
         assert res.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+class TestUserLogin:
+    api_name = f"auth:{config.AUTH_BACKEND_NAME}.login"
+
+    async def test_user_can_login_successfully_and_receives_valid_token(
+        self,
+        app: FastAPI,
+        client: AsyncClient,
+        test_user: user.user_model,
+        strategy: JWTStrategy,
+        engine: AsyncEngine,
+    ) -> None:
+        client.headers["content-type"] = "application/x-www-form-urlencoded"
+        login_data = {"username": test_user.email, "password": "heatcavslakers@1"}
+        res = await client.post(app.url_path_for(self.api_name), data=login_data)
+        assert res.status_code == status.HTTP_200_OK
+        # check that token exists in response and has user encoded within it
+        token = res.json().get("access_token")
+
+        async with AsyncSession(engine, autocommit=False) as session:
+            db = SQLAlchemyUserDatabase(user.user, session, user.user_model)  # type: ignore
+            manager = UserManager(db)
+
+            read_user: user.user_model | None = await strategy.read_token(
+                token, manager
+            )
+        assert read_user is not None
+        assert read_user.name == test_user.name
+        assert read_user.email == test_user.email
+        # check that token is proper type
+        assert "token_type" in res.json()
+        assert res.json().get("token_type") == "bearer"
+
+    @pytest.mark.parametrize(
+        "credential, wrong_value, status_code",
+        (
+            ("email", "wrong@email.com", 400),
+            ("email", None, 422),
+            ("email", "notemail", 400),
+            ("password", "wrongpassword@1", 400),
+            ("password", None, 422),
+        ),
+    )
+    async def test_user_with_wrong_creds_doesnt_receive_token(
+        self,
+        app: FastAPI,
+        client: AsyncClient,
+        test_user: user.user_model,
+        credential: str,
+        wrong_value: str,
+        status_code: int,
+    ) -> None:
+        client.headers["content-type"] = "application/x-www-form-urlencoded"
+        user_data = test_user.dict()
+        user_data["password"] = "heatcavslakers@1"
+        user_data[credential] = wrong_value
+        login_data = {
+            "username": user_data["email"],
+            "password": user_data["password"],  # insert password from parameters
+        }
+        res = await client.post(app.url_path_for(self.api_name), data=login_data)
+        assert res.status_code == status_code
+        assert "access_token" not in res.json()
+
+
+class TestUserMe:
+    api_name = "users:get-current-user"
+
+    async def test_authenticated_user_can_retrieve_own_data(
+        self,
+        app: FastAPI,
+        authorized_client: AsyncClient,
+        test_user: user.user_model,
+    ) -> None:
+        res = await authorized_client.get(app.url_path_for(self.api_name))
+        assert res.status_code == status.HTTP_200_OK
+        res_dict: dict = res.json()
+        res_dict["hashed_password"] = "testpassword@1"
+        read_user = user.user_model.validate(res_dict)
+        assert read_user.email == test_user.email
+        assert read_user.name == test_user.name
+        assert read_user.id == test_user.id
+
+    async def test_user_cannot_access_own_data_if_not_authenticated(
+        self,
+        app: FastAPI,
+        client: AsyncClient,
+        test_user: user.user_model,
+    ) -> None:
+        res = await client.get(app.url_path_for("users:get-current-user"))
+        assert res.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @pytest.mark.parametrize(
+        "jwt_prefix",
+        (
+            ("",),
+            ("value",),
+            ("Token",),
+            ("JWT",),
+            ("Swearer",),
+        ),
+    )
+    async def test_user_cannot_access_own_data_with_incorrect_jwt_prefix(
+        self,
+        app: FastAPI,
+        client: AsyncClient,
+        test_user: user.user_model,
+        strategy: JWTStrategy,
+        jwt_prefix: str,
+    ) -> None:
+        token = await strategy.write_token(test_user)
+        res = await client.get(
+            app.url_path_for("users:get-current-user"),
+            headers={"Authorization": f"{jwt_prefix} {token}"},
+        )
+        assert res.status_code == status.HTTP_401_UNAUTHORIZED
