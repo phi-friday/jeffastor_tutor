@@ -8,8 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlalchemy.exc import InvalidRequestError
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[3]))
-from app.core import config as core_config
-from app.db.engine import convert_async_to_sync, engine, get_test_engine
+from app.db.engine import convert_async_to_sync, engine, get_test_engine, is_test
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -45,7 +44,7 @@ def run_migrations_offline():
     script output.
 
     """
-    if core_config.TESTING:
+    if is_test():
         raise InvalidRequestError(
             "Running testing migrations offline currently not permitted."
         )
@@ -82,7 +81,7 @@ def run_migrations_online():
 
     default_sync_engine = convert_async_to_sync(engine)
 
-    if core_config.TESTING:
+    if is_test():
         from sqlalchemy import text
 
         with default_sync_engine.connect() as conn:

@@ -7,9 +7,7 @@ config = Config(".env")
 PROJECT_NAME = "jeffastor_tutor"
 VERSION = "1.0.0"
 API_PREFIX = "/api"
-TOKEN_PREFIX = API_PREFIX + "/token"
-
-TESTING = config("TESTING", cast=bool, default=False)
+TOKEN_PREFIX = API_PREFIX + "/token/login"
 
 SECRET_KEY = config("SECRET_KEY", cast=Secret)
 ACCESS_TOKEN_EXPIRE_SECONDS = config(
@@ -18,6 +16,9 @@ ACCESS_TOKEN_EXPIRE_SECONDS = config(
 JWT_ALGORITHM = config("JWT_ALGORITHM", cast=str, default="HS256")
 JWT_AUDIENCE = config("JWT_AUDIENCE", cast=str, default="phresh:auth")
 JWT_TOKEN_PREFIX = config("JWT_TOKEN_PREFIX", cast=str, default="Bearer")
+AUTH_BACKEND_NAME = config(
+    "AUTH_BACKEND_NAME", cast=str, default=f"{JWT_TOKEN_PREFIX}-jwt"
+)
 
 POSTGRES_USER = config("POSTGRES_USER", cast=str)
 POSTGRES_PASSWORD = config("POSTGRES_PASSWORD", cast=Secret)

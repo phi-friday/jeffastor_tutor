@@ -1,3 +1,4 @@
+from os import getenv
 from typing import Any, Literal, overload
 
 from sqlalchemy import create_engine
@@ -9,6 +10,10 @@ from sqlalchemy.pool import NullPool, QueuePool
 from ..core import config
 
 
+def is_test() -> bool:
+    return (env_val := getenv("TESTING", None)) is not None and bool(env_val)
+
+
 def get_test_url(url: URL) -> URL:
     if url.database is None:
         raise ValueError("database name is None")
@@ -16,10 +21,10 @@ def get_test_url(url: URL) -> URL:
     return url.set(database=f"{url.database}_test")
 
 
-def get_engine_kwargs(**kwargs: Any) -> dict[str, Any]:
+def get_engine_kwargs(is_test: bool = False, **kwargs: Any) -> dict[str, Any]:
     params: dict[str, Any] = {"pool_pre_ping": True, "future": True}
 
-    if config.TESTING:
+    if is_test:
         params["poolclass"] = NullPool
     else:
         params["pool_size"] = 10
@@ -49,11 +54,11 @@ def get_test_engine(engine: AsyncEngine, is_sync: bool = ...) -> AsyncEngine | E
 
 
 def get_test_engine(engine: AsyncEngine, is_sync: bool = False) -> AsyncEngine | Engine:
-    if config.TESTING:
-        engine = create_engine_from_url(get_test_url(engine.url))
+    if _is_test := is_test():
+        engine = create_engine_from_url(get_test_url(engine.url), is_test=_is_test)
 
     if is_sync:
-        return convert_async_to_sync(engine)
+        return convert_async_to_sync(engine, is_test=_is_test)
     return engine
 
 
