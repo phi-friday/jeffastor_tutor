@@ -72,43 +72,6 @@ async def register_new_user(
         )
 
 
-@router.post("/login", name="users:login-email-and-password")
-async def user_login_email_and_password(
-    request: Request,
-    new_user: user.user_create = Body(..., embed=True),
-    user_manager: user_manager_type = fastapi_user.user_manager_depends,
-):
-    if re_deny_name.search(new_user.name):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "The name can only contain the following characters: "
-                f"{re_deny_name.pattern.replace('^','')}"
-            ),
-        )
-
-    try:
-        return await user_manager.create(new_user, safe=True, request=request)
-    except UserAlreadyExists as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "That email is already taken. "
-                "Login with that email or register with another one."
-            ),
-        )
-    except ValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=orjson.loads(exc.json()),
-        )
-    except InvalidPasswordException as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=exc.reason,
-        )
-
-
 @router.get("/me", response_model=user.user_read, name="users:get-current-user")
 async def get_currently_authenticated_user(
     current_user: user.user = Depends(get_current_user),
