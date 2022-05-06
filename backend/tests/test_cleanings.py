@@ -3,12 +3,12 @@ from decimal import Decimal, InvalidOperation
 
 import orjson
 import pytest
+from app.db.session import async_session
 from app.models import cleaning
 from app.models.core import datetime_model
 from fastapi import FastAPI, status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 pytestmark = pytest.mark.anyio
 
@@ -81,7 +81,7 @@ async def test_cleaning(engine: AsyncEngine) -> cleaning.cleanings:
         )
     )
     new_cleaning = cleaning.cleanings.validate(new_cleaning_create)
-    async with AsyncSession(engine, autocommit=False) as session:
+    async with async_session(engine, autocommit=False) as session:
         session.add(new_cleaning)
         await session.commit()
         await session.refresh(new_cleaning)

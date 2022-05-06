@@ -4,9 +4,8 @@ import orjson
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from pydantic import ValidationError
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ...db.session import get_session
+from ...db.session import async_session, get_session
 from ...models import cleaning
 
 router = APIRouter()
@@ -18,7 +17,7 @@ router = APIRouter()
     name="cleanings:get-all-cleanings",
 )
 async def get_all_cleanings(
-    session: AsyncSession = Depends(get_session),
+    session: async_session = Depends(get_session),
 ) -> list[cleaning.cleanings]:
     # 아직 sqlmodel의 async session은 type hint와 관련해서 제대로 지원하지 않습니다.
     # 제대로 작성된게 맞는지 확인해보고 싶다면,
@@ -27,7 +26,7 @@ async def get_all_cleanings(
     # sync_session = session.sync_session
     # table = sync_session.exec(select(cleaning.cleanings))
     # rows = table.all()
-    table = await session.exec(select(cleaning.cleanings))  # type: ignore
+    table = await session.exec(select(cleaning.cleanings))
     rows = cast(list[cleaning.cleanings], table.all())
     return rows
 
@@ -40,7 +39,7 @@ async def get_all_cleanings(
 )
 async def create_new_cleaning(
     new_cleaning: cleaning.cleaning_create = Body(..., embed=True),
-    session: AsyncSession = Depends(get_session),
+    session: async_session = Depends(get_session),
 ) -> cleaning.cleanings:
     # data = cleanings.from_orm(new_cleaning) 으로 해도 가능
     # exclude_none=True, exclude_unset=True 옵션을 위해 parse_obj 사용
@@ -66,7 +65,7 @@ async def create_new_cleaning(
 )
 async def get_cleaning_by_id(
     id: int = Path(..., ge=1),
-    session: AsyncSession = Depends(get_session),
+    session: async_session = Depends(get_session),
 ) -> cleaning.cleanings:
     if (get_cleaning := await session.get(cleaning.cleanings, id)) is None:
         raise HTTPException(
@@ -84,7 +83,7 @@ async def get_cleaning_by_id(
 async def update_cleaning_by_id_as_patch(
     id: int = Path(..., ge=1),
     update_cleaning: cleaning.cleaning_update = Body(..., embed=True),
-    session: AsyncSession = Depends(get_session),
+    session: async_session = Depends(get_session),
 ) -> cleaning.cleanings:
     if (get_cleaning := await session.get(cleaning.cleanings, id)) is None:
         raise HTTPException(
@@ -116,7 +115,7 @@ async def update_cleaning_by_id_as_patch(
 @router.delete("/{id}", response_model=int, name="cleanings:delete-cleaning-by-id")
 async def delete_cleaning_by_id(
     id: int = Path(..., ge=1, title="The ID of the cleaning to delete."),
-    session: AsyncSession = Depends(get_session),
+    session: async_session = Depends(get_session),
 ) -> int:
     if (get_cleaning := await session.get(cleaning.cleanings, id)) is None:
         raise HTTPException(
@@ -139,7 +138,7 @@ async def delete_cleaning_by_id(
 async def update_cleaning_by_id_as_put(
     id: int = Path(..., ge=1),
     update_cleaning: cleaning.cleaning_update = Body(..., embed=True),
-    session: AsyncSession = Depends(get_session),
+    session: async_session = Depends(get_session),
 ) -> cleaning.cleanings:
     if (get_cleaning := await session.get(cleaning.cleanings, id)) is None:
         raise HTTPException(

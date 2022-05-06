@@ -5,6 +5,7 @@ from typing import AsyncIterator
 import alembic
 import pytest
 from alembic.config import Config
+from app.db.session import async_session
 from app.models import user
 from app.services.authentication import UserManager, create_strategy
 from asgi_lifespan import LifespanManager
@@ -13,8 +14,6 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.manager import UserNotExists
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.fixture(
@@ -60,7 +59,7 @@ async def test_user(engine: AsyncEngine) -> user.user:
         )
     )
 
-    async with AsyncSession(engine, autocommit=False) as session:
+    async with async_session(engine, autocommit=False) as session:
         db = SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
         manager = UserManager(db)
 

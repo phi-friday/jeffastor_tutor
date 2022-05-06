@@ -1,5 +1,6 @@
 import pytest
 from app.core import config
+from app.db.session import async_session
 from app.models import user
 from app.services.authentication import UserManager, create_strategy
 from fastapi import FastAPI, status
@@ -8,7 +9,6 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.jwt import decode_jwt
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 pytestmark = pytest.mark.anyio
 
@@ -43,7 +43,7 @@ class TestUserRegistration:
             "password": "chantaje@1",
         }
         # make sure user doesn't exist yet
-        async with AsyncSession(engine, autocommit=False) as session:
+        async with async_session(engine, autocommit=False) as session:
             is_user = await user.user.get_from_email(
                 session=session, email=new_user["email"]
             )
@@ -54,7 +54,7 @@ class TestUserRegistration:
         )
         assert res.status_code == status.HTTP_201_CREATED
         # ensure that the user now exists in the db
-        async with AsyncSession(engine, autocommit=False) as session:
+        async with async_session(engine, autocommit=False) as session:
             is_user = await user.user.get_from_email(
                 session=session, email=new_user["email"]
             )
@@ -138,7 +138,7 @@ class TestAuthTokens:
         user_id = creds["user_id"]
         assert config.JWT_AUDIENCE in creds["aud"]
 
-        async with AsyncSession(engine, autocommit=False) as session:
+        async with async_session(engine, autocommit=False) as session:
             user_model = await session.get(user.user, user_id)
         assert user_model is not None
 
@@ -172,7 +172,7 @@ class TestUserLogin:
         # check that token exists in response and has user encoded within it
         token = res.json().get("access_token")
 
-        async with AsyncSession(engine, autocommit=False) as session:
+        async with async_session(engine, autocommit=False) as session:
             db = SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
             manager = UserManager(db)
 

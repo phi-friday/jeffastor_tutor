@@ -13,17 +13,16 @@ from fastapi_users.authentication import (
     Transport,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..core import config
-from ..db.session import get_session
+from ..db.session import async_session, get_session
 from ..models import user
 
 user_manager_type = BaseUserManager[user.user_create, user.user]
 strategy_type = Strategy[user.user_create, user.user]
 
 
-async def get_user_db(session: AsyncSession = Depends(get_session)):
+async def get_user_db(session: async_session = Depends(get_session)):
     yield SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
 
 
