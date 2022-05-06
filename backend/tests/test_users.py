@@ -44,7 +44,7 @@ class TestUserRegistration:
         }
         # make sure user doesn't exist yet
         async with AsyncSession(engine, autocommit=False) as session:
-            is_user = await user.user_model.get_from_email(
+            is_user = await user.user.get_from_email(
                 session=session, email=new_user["email"]
             )
         assert is_user is None
@@ -55,17 +55,15 @@ class TestUserRegistration:
         assert res.status_code == status.HTTP_201_CREATED
         # ensure that the user now exists in the db
         async with AsyncSession(engine, autocommit=False) as session:
-            is_user = await user.user_model.get_from_email(
+            is_user = await user.user.get_from_email(
                 session=session, email=new_user["email"]
             )
         assert is_user is not None
         assert is_user.email == new_user["email"]
         assert is_user.name == new_user["name"]
         # check that the user returned in the response is equal to the user in the database
-        created_user = user.user_model.validate(
-            res.json() | {"hashed_password": "whatever"}
-        )
-        exclude_attr_set = user.user_model.datetime_attrs | {"id", "hashed_password"}
+        created_user = user.user.validate(res.json() | {"hashed_password": "whatever"})
+        exclude_attr_set = user.user.datetime_attrs | {"id", "hashed_password"}
         assert created_user.dict(exclude=exclude_attr_set) == is_user.dict(
             exclude=exclude_attr_set
         )
@@ -124,7 +122,7 @@ class TestAuthTokens:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_user: user.user_model,
+        test_user: user.user,
         strategy: JWTStrategy,
         engine: AsyncEngine,
     ) -> None:
@@ -141,7 +139,7 @@ class TestAuthTokens:
         assert config.JWT_AUDIENCE in creds["aud"]
 
         async with AsyncSession(engine, autocommit=False) as session:
-            user_model = await session.get(user.user_model, user_id)
+            user_model = await session.get(user.user, user_id)
         assert user_model is not None
 
         assert user_model.name == test_user.name
@@ -163,7 +161,7 @@ class TestUserLogin:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_user: user.user_model,
+        test_user: user.user,
         strategy: JWTStrategy,
         engine: AsyncEngine,
     ) -> None:
@@ -175,12 +173,10 @@ class TestUserLogin:
         token = res.json().get("access_token")
 
         async with AsyncSession(engine, autocommit=False) as session:
-            db = SQLAlchemyUserDatabase(user.user, session, user.user_model)  # type: ignore
+            db = SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
             manager = UserManager(db)
 
-            read_user: user.user_model | None = await strategy.read_token(
-                token, manager
-            )
+            read_user: user.user | None = await strategy.read_token(token, manager)
         assert read_user is not None
         assert read_user.name == test_user.name
         assert read_user.email == test_user.email
@@ -202,7 +198,7 @@ class TestUserLogin:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_user: user.user_model,
+        test_user: user.user,
         credential: str,
         wrong_value: str,
         status_code: int,
@@ -227,13 +223,13 @@ class TestUserMe:
         self,
         app: FastAPI,
         authorized_client: AsyncClient,
-        test_user: user.user_model,
+        test_user: user.user,
     ) -> None:
         res = await authorized_client.get(app.url_path_for(self.api_name))
         assert res.status_code == status.HTTP_200_OK
         res_dict: dict = res.json()
         res_dict["hashed_password"] = "testpassword@1"
-        read_user = user.user_model.validate(res_dict)
+        read_user = user.user.validate(res_dict)
         assert read_user.email == test_user.email
         assert read_user.name == test_user.name
         assert read_user.id == test_user.id
@@ -242,7 +238,7 @@ class TestUserMe:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_user: user.user_model,
+        test_user: user.user,
     ) -> None:
         res = await client.get(app.url_path_for("users:get-current-user"))
         assert res.status_code == status.HTTP_401_UNAUTHORIZED
@@ -261,7 +257,7 @@ class TestUserMe:
         self,
         app: FastAPI,
         client: AsyncClient,
-        test_user: user.user_model,
+        test_user: user.user,
         strategy: JWTStrategy,
         jwt_prefix: str,
     ) -> None:

@@ -14,7 +14,7 @@ from alembic import op
 sys.path.append(Path(__file__).resolve().parents[4].as_posix())
 from app.models.cleaning import cleanings
 from app.models.core import datetime_model
-from app.models.user import user_model
+from app.models.user import user
 
 # revision identifiers, used by Alembic.
 revision = "f721febf752b"
@@ -23,7 +23,7 @@ branch_labels = None
 depends_on = None
 
 cleanings_table = cleanings.get_table()
-users_table = user_model.get_table()
+users_table = user.get_table()
 
 
 def create_cleanings_table() -> None:

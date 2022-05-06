@@ -13,7 +13,7 @@ from .core import base_model, datetime_model
 min_name_length = 4
 max_name_length = 20
 
-_T = TypeVar("_T", bound="user_model")
+_T = TypeVar("_T", bound="user")
 
 
 class user_base(models.BaseUser, datetime_model):
@@ -32,12 +32,7 @@ class user_read(user_base):
     ...
 
 
-class user(user_base, models.BaseUserDB):
-    def to_model(self) -> "user_model":
-        return user_model.validate(self)
-
-
-class user_model(base_model, datetime_model, table=True):
+class user(base_model, user_base, models.BaseUserDB, table=True):
     __tablename__: str = "users"
 
     id: UUID4 = Field(default_factory=uuid4, primary_key=True)
@@ -56,3 +51,7 @@ class user_model(base_model, datetime_model, table=True):
             cast(Select[_T], select(cls).where(cls.email == email))
         )
         return is_user_cur.first()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validate(self)

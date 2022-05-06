@@ -112,5 +112,5 @@ async def user_login_email_and_password(
 @router.get("/me", response_model=user.user_read, name="users:get-current-user")
 async def get_currently_authenticated_user(
     current_user: user.user = Depends(get_current_user),
-) -> user.user_model:
-    return current_user.to_model()
+) -> user.user:
+    return current_user

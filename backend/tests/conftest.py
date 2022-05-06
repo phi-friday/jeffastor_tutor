@@ -51,7 +51,7 @@ def engine(app: FastAPI) -> AsyncEngine:
 
 
 @pytest.fixture
-async def test_user(engine: AsyncEngine) -> user.user_model:
+async def test_user(engine: AsyncEngine) -> user.user:
     new_user = user.user_create.parse_obj(
         dict(
             email="lebron@james.io",
@@ -61,7 +61,7 @@ async def test_user(engine: AsyncEngine) -> user.user_model:
     )
 
     async with AsyncSession(engine, autocommit=False) as session:
-        db = SQLAlchemyUserDatabase(user.user, session, user.user_model)  # type: ignore
+        db = SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
         manager = UserManager(db)
 
         try:
@@ -69,7 +69,7 @@ async def test_user(engine: AsyncEngine) -> user.user_model:
         except UserNotExists:
             new_user_db = await manager.create(new_user, safe=True)
 
-    return new_user_db.to_model()
+    return new_user_db
 
 
 # Make requests in our tests
@@ -85,9 +85,7 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
 
 
 @pytest.fixture
-async def authorized_client(
-    client: AsyncClient, test_user: user.user_model
-) -> AsyncClient:
+async def authorized_client(client: AsyncClient, test_user: user.user) -> AsyncClient:
     from app.core import config
 
     strategy = create_strategy()

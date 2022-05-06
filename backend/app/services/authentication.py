@@ -24,7 +24,7 @@ strategy_type = Strategy[user.user_create, user.user]
 
 
 async def get_user_db(session: AsyncSession = Depends(get_session)):
-    yield SQLAlchemyUserDatabase(user.user, session, user.user_model)  # type: ignore
+    yield SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
 
 
 def create_transport() -> Transport:
