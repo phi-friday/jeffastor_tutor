@@ -2,7 +2,7 @@ import re
 
 import orjson
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
-from fastapi_users.manager import InvalidPasswordException, UserAlreadyExists
+from fastapi_users.exceptions import InvalidPasswordException, UserAlreadyExists
 from pydantic import ValidationError
 
 from ...models import user
@@ -40,7 +40,7 @@ async def register_new_user(
     request: Request,
     new_user: user.user_create = Body(..., embed=True),
     user_manager: user_manager_type = fastapi_user.user_manager_depends,
-):
+) -> user.user:
     if re_deny_name.search(new_user.name):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

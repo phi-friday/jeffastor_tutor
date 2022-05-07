@@ -4,34 +4,37 @@ from re import Pattern
 from typing import AsyncGenerator, Sequence
 
 from fastapi import Depends, Request
-from fastapi_users import BaseUserManager, FastAPIUsers, InvalidPasswordException
-from fastapi_users.authentication import (
-    AuthenticationBackend,
-    BearerTransport,
-    JWTStrategy,
-    Strategy,
-    Transport,
+from fastapi_users import IntegerIDMixin, InvalidPasswordException
+from fastapi_users.authentication import BearerTransport, Transport
+
+from ...core import config
+from ...db.session import async_session, get_session
+from ...models import user
+from .convert import (
+    auth_backend_class,
+    fastapi_users_class,
+    jwt_strategy_class,
+    strategy_class,
+    strategy_type,
+    user_db_class,
+    user_id_type,
+    user_manager_class,
+    user_manager_type,
 )
-from fastapi_users.db import SQLAlchemyUserDatabase
-
-from ..core import config
-from ..db.session import async_session, get_session
-from ..models import user
-
-user_manager_type = BaseUserManager[user.user_create, user.user]
-strategy_type = Strategy[user.user_create, user.user]
 
 
-async def get_user_db(session: async_session = Depends(get_session)):
-    yield SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
+async def get_user_db(
+    session: async_session = Depends(get_session),
+) -> AsyncGenerator[user_db_class[user.user, user_id_type], None]:
+    yield user_db_class(session, user.user)
 
 
 def create_transport() -> Transport:
     return BearerTransport(tokenUrl=config.TOKEN_PREFIX)
 
 
-def create_strategy() -> Strategy[user.user_create, user.user]:
-    return JWTStrategy(
+def create_strategy() -> strategy_class[user.user, user_id_type]:
+    return jwt_strategy_class(  # type: ignore
         secret=str(config.SECRET_KEY),
         lifetime_seconds=config.ACCESS_TOKEN_EXPIRE_SECONDS,
         token_audience=[config.JWT_AUDIENCE],
@@ -39,10 +42,10 @@ def create_strategy() -> Strategy[user.user_create, user.user]:
     )
 
 
-def create_backend() -> list[AuthenticationBackend[user.user_create, user.user]]:
+def create_backend() -> list[auth_backend_class[user.user, user_id_type]]:
     transport = create_transport()
     return [
-        AuthenticationBackend(
+        auth_backend_class(
             name=config.AUTH_BACKEND_NAME,
             transport=transport,
             get_strategy=create_strategy,
@@ -50,8 +53,7 @@ def create_backend() -> list[AuthenticationBackend[user.user_create, user.user]]
     ]
 
 
-class UserManager(BaseUserManager[user.user_create, user.user]):
-    user_db_model = user.user
+class UserManager(IntegerIDMixin, user_manager_class[user.user, user_id_type]):
     reset_password_token_secret = str(config.SECRET_KEY)
     verification_token_secret = str(config.SECRET_KEY)
 
@@ -109,21 +111,16 @@ async def get_user_manager(
 
 
 def create_fastapi_users(
-    *backends: AuthenticationBackend[user.user_create, user.user],
-) -> FastAPIUsers[user.user_base, user.user_create, user.user_update, user.user]:
-    return FastAPIUsers(
-        get_user_manager=get_user_manager,
-        auth_backends=backends,
-        user_model=user.user_base,
-        user_create_model=user.user_create,
-        user_update_model=user.user_update,
-        user_db_model=user.user,
+    *backends: auth_backend_class[user.user, user_id_type],
+) -> fastapi_users_class[user.user, user_id_type]:
+    return fastapi_users_class(
+        get_user_manager=get_user_manager, auth_backends=backends
     )
 
 
 @dataclass(frozen=True)
 class fastapi_user_class:
-    users: FastAPIUsers[user.user_base, user.user_create, user.user_update, user.user]
+    users: fastapi_users_class[user.user, user_id_type]
 
     @classmethod
     def init(cls) -> "fastapi_user_class":
@@ -131,8 +128,8 @@ class fastapi_user_class:
         return cls(users=users)
 
     @property
-    def backends(self) -> Sequence[AuthenticationBackend[user.user_create, user.user]]:
-        return self.users.authenticator.backends
+    def backends(self) -> Sequence[auth_backend_class[user.user, user_id_type]]:
+        return self.users.authenticator.backends  # type: ignore
 
     @property
     def user_manager_depends(self) -> user_manager_type:

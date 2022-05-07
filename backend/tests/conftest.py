@@ -7,11 +7,10 @@ import pytest
 from alembic.config import Config
 from app.db.session import async_session
 from app.models import user
-from app.services.authentication import UserManager, create_strategy
+from app.services.authentication import UserManager, create_strategy, user_db_class
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
-from fastapi_users.db import SQLAlchemyUserDatabase
-from fastapi_users.manager import UserNotExists
+from fastapi_users.exceptions import UserNotExists
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 
@@ -60,8 +59,8 @@ async def test_user(engine: AsyncEngine) -> user.user:
     )
 
     async with async_session(engine, autocommit=False) as session:
-        db = SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
-        manager = UserManager(db)
+        db = user_db_class(session, user.user)
+        manager = UserManager(db)  # type: ignore
 
         try:
             new_user_db = await manager.get_by_email(new_user.email)

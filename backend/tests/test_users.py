@@ -2,10 +2,13 @@ import pytest
 from app.core import config
 from app.db.session import async_session
 from app.models import user
-from app.services.authentication import UserManager, create_strategy
+from app.services.authentication import (
+    UserManager,
+    create_strategy,
+    jwt_strategy_class,
+    user_db_class,
+)
 from fastapi import FastAPI, status
-from fastapi_users.authentication import JWTStrategy
-from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.jwt import decode_jwt
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -111,7 +114,7 @@ class TestUserRegistration:
 
 
 @pytest.fixture
-def strategy() -> JWTStrategy:
+def strategy() -> jwt_strategy_class:
     return create_strategy()  # type: ignore
 
 
@@ -123,7 +126,7 @@ class TestAuthTokens:
         app: FastAPI,
         client: AsyncClient,
         test_user: user.user,
-        strategy: JWTStrategy,
+        strategy: jwt_strategy_class,
         engine: AsyncEngine,
     ) -> None:
         access_token = await strategy.write_token(user=test_user)
@@ -135,7 +138,7 @@ class TestAuthTokens:
         )
 
         assert creds.get("user_id") is not None
-        user_id = creds["user_id"]
+        user_id = int(creds["user_id"])
         assert config.JWT_AUDIENCE in creds["aud"]
 
         async with async_session(engine, autocommit=False) as session:
@@ -162,7 +165,7 @@ class TestUserLogin:
         app: FastAPI,
         client: AsyncClient,
         test_user: user.user,
-        strategy: JWTStrategy,
+        strategy: jwt_strategy_class,
         engine: AsyncEngine,
     ) -> None:
         client.headers["content-type"] = "application/x-www-form-urlencoded"
@@ -173,8 +176,8 @@ class TestUserLogin:
         token = res.json().get("access_token")
 
         async with async_session(engine, autocommit=False) as session:
-            db = SQLAlchemyUserDatabase(user.user, session, user.user)  # type: ignore
-            manager = UserManager(db)
+            db = user_db_class(session, user.user)
+            manager = UserManager(db)  # type: ignore
 
             read_user: user.user | None = await strategy.read_token(token, manager)
         assert read_user is not None
@@ -258,7 +261,7 @@ class TestUserMe:
         app: FastAPI,
         client: AsyncClient,
         test_user: user.user,
-        strategy: JWTStrategy,
+        strategy: jwt_strategy_class,
         jwt_prefix: str,
     ) -> None:
         token = await strategy.write_token(test_user)
