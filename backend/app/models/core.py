@@ -46,4 +46,4 @@ class datetime_model(fix_return_type_model):
     @classmethod
     @property
     def datetime_attrs(cls) -> set[str]:
-        return set(cls.__fields__.keys())
+        return set(datetime_model.__fields__.keys())
