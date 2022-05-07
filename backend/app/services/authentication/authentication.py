@@ -1,11 +1,11 @@
 import re
 from dataclasses import dataclass
 from re import Pattern
-from typing import AsyncGenerator, Sequence
+from typing import AsyncGenerator, Callable, Sequence
 
 from fastapi import Depends, Request
 from fastapi_users import IntegerIDMixin, InvalidPasswordException
-from fastapi_users.authentication import BearerTransport, Transport
+from fastapi_users.authentication import BearerTransport, CookieTransport, Transport
 
 from ...core import config
 from ...db.session import async_session, get_session
@@ -22,6 +22,8 @@ from .convert import (
     user_manager_type,
 )
 
+backend_type = auth_backend_class[user.user, user_id_type]
+
 
 async def get_user_db(
     session: async_session = Depends(get_session),
@@ -33,23 +35,47 @@ def create_transport() -> Transport:
     return BearerTransport(tokenUrl=config.TOKEN_PREFIX)
 
 
-def create_strategy() -> strategy_class[user.user, user_id_type]:
-    return jwt_strategy_class(  # type: ignore
-        secret=str(config.SECRET_KEY),
-        lifetime_seconds=config.ACCESS_TOKEN_EXPIRE_SECONDS,
-        token_audience=[config.JWT_AUDIENCE],
-        algorithm=config.JWT_ALGORITHM,
+def create_cookie_transport(name: str, coef: float = 1) -> CookieTransport:
+    return CookieTransport(
+        cookie_name=name,
+        cookie_max_age=round(config.ACCESS_TOKEN_EXPIRE_SECONDS * coef),
+        cookie_httponly=True,
+        cookie_secure=False,  # 나중에 꼭 바꿀 것
     )
 
 
-def create_backend() -> list[auth_backend_class[user.user, user_id_type]]:
-    transport = create_transport()
+def create_strategy(
+    coef: float = 1,
+) -> Callable[[], strategy_class[user.user, user_id_type]]:
+    def get_strategy() -> strategy_class[user.user, user_id_type]:
+        return jwt_strategy_class(  # type: ignore
+            secret=str(config.SECRET_KEY),
+            lifetime_seconds=round(config.ACCESS_TOKEN_EXPIRE_SECONDS * coef),
+            token_audience=[config.JWT_AUDIENCE],
+            algorithm=config.JWT_ALGORITHM,
+        )
+
+    return get_strategy
+
+
+def create_backend() -> list[backend_type]:
+    # transport = create_transport()
+    # return [
+    #     auth_backend_class(
+    #         name=config.AUTH_BACKEND_NAME,
+    #         transport=transport,
+    #         get_strategy=create_strategy,
+    #     )
+    # ]
+    names = "access-token", "refresh-token"
+    coefs = 1, 10
     return [
         auth_backend_class(
-            name=config.AUTH_BACKEND_NAME,
-            transport=transport,
-            get_strategy=create_strategy,
+            name=name,
+            transport=create_cookie_transport(name, coef),
+            get_strategy=create_strategy(coef),
         )
+        for name, coef in zip(names, coefs)
     ]
 
 
@@ -111,7 +137,7 @@ async def get_user_manager(
 
 
 def create_fastapi_users(
-    *backends: auth_backend_class[user.user, user_id_type],
+    *backends: backend_type,
 ) -> fastapi_users_class[user.user, user_id_type]:
     return fastapi_users_class(
         get_user_manager=get_user_manager, auth_backends=backends
@@ -128,13 +154,26 @@ class fastapi_user_class:
         return cls(users=users)
 
     @property
-    def backends(self) -> Sequence[auth_backend_class[user.user, user_id_type]]:
+    def backends(self) -> Sequence[backend_type]:
         return self.users.authenticator.backends  # type: ignore
 
     @property
     def user_manager_depends(self) -> user_manager_type:
         return Depends(self.users.get_user_manager)
 
-    def strategy_depends(self, num: int = 0, /) -> strategy_type:
-        backend = self.backends[num]
+    def get_backend(self, _key: int | str = 0, /) -> backend_type:
+        if isinstance(_key, int):
+            return self.backends[_key]
+
+        for backend in self.backends:
+            if backend.name == _key:
+                return backend
+
+        raise KeyError(f"there is no backend as name: {_key}")
+
+    def backend_depends(self, _key: int | str = 0, /) -> backend_type:
+        return Depends(lambda: self.get_backend(_key))
+
+    def strategy_depends(self, _key: int | str = 0, /) -> strategy_type:
+        backend = self.get_backend(_key)
         return Depends(backend.get_strategy)

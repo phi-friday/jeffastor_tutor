@@ -77,3 +77,8 @@ async def get_currently_authenticated_user(
     current_user: user.user = Depends(get_current_user),
 ) -> user.user:
     return current_user
+
+
+@router.get("/test")
+async def test(request: Request):
+    return [request.client.host, request.client.port]
