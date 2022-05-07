@@ -1,11 +1,9 @@
 from typing import TypeVar
-from uuid import uuid4
 
-from fastapi_users import db, schemas
-from pydantic import UUID4, EmailStr
+from fastapi_users import schemas
+from pydantic import EmailStr
 from pydantic import Field as _Field
 from sqlmodel import Field, select
-from sqlmodel.sql.expression import Select
 
 from ..db.session import async_session
 from .core import base_model, datetime_model, id_model
