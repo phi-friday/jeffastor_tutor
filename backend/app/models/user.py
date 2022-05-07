@@ -6,14 +6,15 @@ from pydantic import Field as _Field
 from sqlmodel import Field, select
 
 from ..db.session import async_session
-from .core import base_model, datetime_model, id_model
+from .core import base_model, datetime_model, uuid_id_model
 
 min_name_length = 4
 max_name_length = 20
 
 
 _T = TypeVar("_T", bound="user")
-user_id_type = int
+id_model = uuid_id_model
+user_id_type = id_model.id_type
 
 
 class user(id_model, datetime_model, base_model, table=True):

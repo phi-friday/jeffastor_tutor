@@ -3,7 +3,7 @@ from enum import Enum
 from pydantic import condecimal
 from sqlmodel import Field
 
-from .core import base_model, datetime_model, id_model
+from .core import base_model, datetime_model, int_id_model
 
 price_decimal_type = condecimal(max_digits=10, decimal_places=2)
 
@@ -30,7 +30,7 @@ class cleaning_update(cleaning_base):
     cleaning_type: cleaning_type_enum | None = None
 
 
-class cleanings(id_model, datetime_model, cleaning_base, table=True):
+class cleanings(int_id_model, datetime_model, cleaning_base, table=True):
     name: str = Field(index=True)
     cleaning_type: cleaning_type_enum = Field(
         cleaning_type_enum.spot_clean,
@@ -39,5 +39,5 @@ class cleanings(id_model, datetime_model, cleaning_base, table=True):
     price: price_decimal_type
 
 
-class cleaning_public(id_model, cleaning_base):
+class cleaning_public(int_id_model, cleaning_base):
     ...

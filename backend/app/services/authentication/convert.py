@@ -4,10 +4,10 @@ from fastapi_users import BaseUserManager, FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from ...models import user
 from ...models.core import base_model
+from ...models.user import user
 
-user_id_type = user.user_id_type
+user_id_type = user.id_type
 _T = TypeVar("_T", bound=base_model)
 _D = TypeVar("_D")
 
@@ -21,5 +21,5 @@ class fastapi_users_class(FastAPIUsers[_T, _D], Generic[_T, _D]): ...  # type: i
 # fmt: on
 
 
-user_manager_type = user_manager_class[user.user, user_id_type]
-strategy_type = strategy_class[user.user, user_id_type]
+user_manager_type = user_manager_class[user, user_id_type]
+strategy_type = strategy_class[user, user_id_type]

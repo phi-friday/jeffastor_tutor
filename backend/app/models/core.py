@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Any, TypeVar, cast
+from uuid import uuid4
 
+from pydantic import UUID4
 from sqlmodel import Field, SQLModel, Table
 
 _T = TypeVar("_T", bound=SQLModel)
@@ -32,7 +34,18 @@ class base_model(fix_return_type_model):
 
 
 class id_model(fix_return_type_model):
+    @classmethod
+    @property
+    def id_type(cls) -> Any:
+        return cls.__fields__["id"].type_
+
+
+class int_id_model(id_model):
     id: int | None = Field(None, primary_key=True)
+
+
+class uuid_id_model(id_model):
+    id: UUID4 | None = Field(default_factory=uuid4, primary_key=True)
 
 
 class datetime_model(fix_return_type_model):
