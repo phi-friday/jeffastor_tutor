@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from ...dependencies.auth import get_current_user, get_user_manager
 from ...models import user
-from ...services.authentication import user_manager_type
+from ...services.authentication.convert import user_manager_type
 
 router = APIRouter()
 re_deny_name = re.compile(r"[^a-zA-Z0-9_-]")

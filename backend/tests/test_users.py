@@ -138,7 +138,7 @@ class TestAuthTokens:
         )
 
         assert creds.get("user_id") is not None
-        user_id = int(creds["user_id"])
+        user_id = user.user.id_type(creds["user_id"])
         assert config.JWT_AUDIENCE in creds["aud"]
 
         async with async_session(engine, autocommit=False) as session:
