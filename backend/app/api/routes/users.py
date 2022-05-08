@@ -5,16 +5,12 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, 
 from fastapi_users.exceptions import InvalidPasswordException, UserAlreadyExists
 from pydantic import ValidationError
 
+from ...dependencies.auth import get_current_user, get_user_manager
 from ...models import user
-from ...services.authentication import fastapi_user_class, user_manager_type
+from ...services.authentication import user_manager_type
 
-fastapi_user = fastapi_user_class.init()
 router = APIRouter()
 re_deny_name = re.compile(r"[^a-zA-Z0-9_-]")
-
-get_current_user = fastapi_user.users.current_user(
-    optional=False, active=True, verified=False, superuser=False
-)
 
 
 @router.options("", name="users:get-allowed-methods")
@@ -39,7 +35,7 @@ async def get_allowed_user_methods() -> Response:
 async def register_new_user(
     request: Request,
     new_user: user.user_create = Body(..., embed=True),
-    user_manager: user_manager_type = fastapi_user.user_manager_depends,
+    user_manager: user_manager_type = Depends(get_user_manager),
 ) -> user.user:
     if re_deny_name.search(new_user.name):
         raise HTTPException(

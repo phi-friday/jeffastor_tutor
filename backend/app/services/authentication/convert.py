@@ -23,3 +23,4 @@ class fastapi_users_class(FastAPIUsers[_T, _D], Generic[_T, _D]): ...  # type: i
 
 user_manager_type = user_manager_class[user, user_id_type]
 strategy_type = strategy_class[user, user_id_type]
+auth_backend_type = auth_backend_class[user, user_id_type]

@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from re import Pattern
 from typing import AsyncGenerator, Sequence
 
@@ -12,6 +12,7 @@ from ...db.session import async_session, get_session
 from ...models import user
 from .convert import (
     auth_backend_class,
+    auth_backend_type,
     fastapi_users_class,
     jwt_strategy_class,
     strategy_class,
@@ -42,7 +43,7 @@ def create_strategy() -> strategy_class[user.user, user_id_type]:
     )
 
 
-def create_backend() -> list[auth_backend_class[user.user, user_id_type]]:
+def create_backend() -> list[auth_backend_type]:
     transport = create_transport()
     return [
         auth_backend_class(
@@ -111,7 +112,7 @@ async def get_user_manager(
 
 
 def create_fastapi_users(
-    *backends: auth_backend_class[user.user, user_id_type],
+    *backends: auth_backend_type,
 ) -> fastapi_users_class[user.user, user_id_type]:
     return fastapi_users_class(
         get_user_manager=get_user_manager, auth_backends=backends
@@ -121,6 +122,7 @@ def create_fastapi_users(
 @dataclass(frozen=True)
 class fastapi_user_class:
     users: fastapi_users_class[user.user, user_id_type]
+    named_backends: dict[str, auth_backend_type] = field(default_factory=dict)
 
     @classmethod
     def init(cls) -> "fastapi_user_class":
@@ -128,13 +130,31 @@ class fastapi_user_class:
         return cls(users=users)
 
     @property
-    def backends(self) -> Sequence[auth_backend_class[user.user, user_id_type]]:
+    def backends(self) -> Sequence[auth_backend_type]:
         return self.users.authenticator.backends  # type: ignore
 
     @property
-    def user_manager_depends(self) -> user_manager_type:
-        return Depends(self.users.get_user_manager)
+    def get_user_manager(self):
+        return self.users.get_user_manager
 
-    def strategy_depends(self, num: int = 0, /) -> strategy_type:
-        backend = self.backends[num]
-        return Depends(backend.get_strategy)
+    def find_backend(self, _val: str, /) -> auth_backend_type:
+        for backend in self.backends:
+            if backend.name == _val:
+                return backend
+        raise IndexError(f"there is not auth_backend name: {_val}")
+
+    def get_backend(self, _val: int | str = 0, /) -> auth_backend_type:
+        if isinstance(_val, int):
+            return self.backends[_val]
+
+        if (backend := self.named_backends.get(_val)) is None:
+            backend = self.named_backends[_val] = self.find_backend(_val)
+        return backend
+
+    def get_transport(self, _val: int | str = 0, /) -> Transport:
+        backend = self.get_backend(_val)
+        return backend.transport
+
+    def get_strategy(self, _val: int | str = 0, /):
+        backend = self.get_backend(_val)
+        return backend.get_strategy
