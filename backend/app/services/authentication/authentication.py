@@ -4,7 +4,7 @@ from re import Pattern
 from typing import AsyncGenerator, Sequence
 
 from fastapi import Depends, Request
-from fastapi_users import IntegerIDMixin, InvalidPasswordException
+from fastapi_users import InvalidPasswordException, UUIDIDMixin
 from fastapi_users.authentication import BearerTransport, Transport
 
 from ...core import config
@@ -16,11 +16,9 @@ from .convert import (
     fastapi_users_class,
     jwt_strategy_class,
     strategy_class,
-    strategy_type,
     user_db_class,
     user_id_type,
     user_manager_class,
-    user_manager_type,
 )
 
 
@@ -54,7 +52,7 @@ def create_backend() -> list[auth_backend_type]:
     ]
 
 
-class UserManager(IntegerIDMixin, user_manager_class[user.user, user_id_type]):
+class UserManager(UUIDIDMixin, user_manager_class[user.user, user_id_type]):
     reset_password_token_secret = str(config.SECRET_KEY)
     verification_token_secret = str(config.SECRET_KEY)
 
